@@ -4,9 +4,10 @@
 export function parseTemplate(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
 
-  const hfind  = (rx) => { try { return html.match(rx)?.[1]?.trim() ?? null } catch { return null } }
+  const hfind    = (rx) => { try { return html.match(rx)?.[1]?.trim() ?? null } catch { return null } }
   const hfindAll = (rx) => { try { return [...html.matchAll(rx)] } catch { return [] } }
-  const qtext  = (sel) => { try { return doc.querySelector(sel)?.textContent?.trim() ?? null } catch { return null } }
+  const qtext    = (sel) => { try { return doc.querySelector(sel)?.textContent?.trim() ?? null } catch { return null } }
+  const qattr    = (sel, attr) => { try { return doc.querySelector(sel)?.getAttribute(attr)?.trim() ?? null } catch { return null } }
 
   // Tipo
   const type = html.includes('t-name') || html.includes('date-day') ? 'infantil'
@@ -14,15 +15,16 @@ export function parseTemplate(html) {
     : 'generico'
 
   // CSS :root
-  const rootM = html.match(/:root\s*\{([^}]+)\}/s)
+  const rootM  = html.match(/:root\s*\{([^}]+)\}/s)
   const cssRoot = rootM ? `:root {\n${rootM[1]}\n}` : ''
 
-  // Nombre
   const MESES = ['','ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
+
+  // ── NOMBRE ───────────────────────────────────────────────────────────────────
   let nombre = (qtext('.t-name') ?? qtext('.hero-names') ?? qtext('.couple-names') ?? qtext('h1') ?? '').replace(/<[^>]+>/g,'').trim()
   nombre = nombre ? nombre[0].toUpperCase() + nombre.slice(1).toLowerCase() : ''
 
-  // Fecha — JS countdown primero (más preciso)
+  // ── FECHA ────────────────────────────────────────────────────────────────────
   let dia='', mes='', anio='', hora=''
   const cdm = hfind(/new Date\(['"](\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/)
   if (cdm) {
@@ -30,11 +32,10 @@ export function parseTemplate(html) {
     const [y, mo, d] = dp.split('-')
     dia = String(parseInt(d)); mes = MESES[parseInt(mo)] ?? mo; anio = y; hora = tp?.slice(0,5) ?? ''
   } else {
-    dia   = qtext('.date-day') ?? ''
-    mes   = qtext('.date-month') ?? ''
-    anio  = qtext('.date-year') ?? ''
-    hora  = (qtext('.date-time-pill') ?? '').replace(/[^\d:]/g,'').trim()
-    // Casamiento: "14 · JUNIO · 2025"
+    dia  = qtext('.date-day') ?? ''
+    mes  = qtext('.date-month') ?? ''
+    anio = qtext('.date-year') ?? ''
+    hora = (qtext('.date-time-pill') ?? '').replace(/[^\d:]/g,'').trim()
     const hd = qtext('.hero-date,.event-date,.fecha')
     if (hd) {
       hd.split(/[·\-\/\s]+/).map(s=>s.trim()).filter(Boolean).forEach(p => {
@@ -45,7 +46,7 @@ export function parseTemplate(html) {
     }
   }
 
-  // Lugar
+  // ── LUGAR ────────────────────────────────────────────────────────────────────
   let salon='', addr1='', addr2='', mapsQuery=''
   const pn = doc.querySelector('.place-name')
   if (pn) {
@@ -77,43 +78,72 @@ export function parseTemplate(html) {
       }
     }
   }
-  const ml = doc.querySelector('a[href*="maps.google.com"]')
-  if (ml) { const q = (ml.getAttribute('href')??'').match(/[?&]q=([^&"']+)/); mapsQuery = q?.[1]??'' }
+  // Maps query — busca en todos los links de maps
+  const ml = doc.querySelector('a[href*="maps.google.com"], a[href*="waze.com"], a[href*="maps.apple.com"]')
+  if (ml) {
+    const href = ml.getAttribute('href') ?? ''
+    const q = href.match(/[?&]q=([^&"']+)/)
+    mapsQuery = q ? decodeURIComponent(q[1].replace(/\+/g,' ')) : ''
+  }
 
-  // Mensajes
+  // ── MENSAJES ─────────────────────────────────────────────────────────────────
   const msgSi = qtext('.res-msg.res-yes,.res-yes') ?? qtext('.hero-phrase,.invite-phrase,.frase') ?? qtext('.quote-text,.cita') ?? ''
 
-  // Footer
+  // ── FOOTER ───────────────────────────────────────────────────────────────────
   let footerTxt = qtext('.footer-name') ?? qtext('.footer-txt') ?? qtext('footer p') ?? ''
   const footerDate = qtext('.footer-date')
   if (footerDate && footerTxt && !footerTxt.includes(footerDate)) footerTxt += ' · ' + footerDate
 
-  // Título
+  // ── TÍTULO ───────────────────────────────────────────────────────────────────
   const titulo = qtext('title') ?? ''
 
-  // Imágenes
-  const gifs = hfindAll(/src="([^"]+\.gif)"/g)
+  // ── IMÁGENES — FIX: busca img directa con clase, no img dentro del selector ──
+  // GIFs
+  const gifs = hfindAll(/src="([^"]+\.gif)"/gi)
   const gifSi = gifs[0]?.[1] ?? ''
   const gifNo = gifs[1]?.[1] ?? ''
+
+  // Cover img — primero busca img con clase cover-img directo, luego dentro de contenedores
   let coverImg = ''
-  for (const sel of ['.cover-img img','#cover-screen img','.hero-bg img','.portada img']) {
-    const el = doc.querySelector(sel); const s = el?.getAttribute('src')??''
+  const coverSelectors = [
+    'img.cover-img',           // ← FIX: img con clase directa
+    '.cover-img-wrap img',
+    '#cover-screen img',
+    '.cover-img img',
+    '.hero-bg img',
+    '.portada img',
+  ]
+  for (const sel of coverSelectors) {
+    const s = qattr(sel, 'src') ?? ''
     if (s && !s.startsWith('data:')) { coverImg = s; break }
   }
+
+  // Hero img — busca img con clase mario-img, hero-img, personaje directa
   let heroImg = ''
-  for (const sel of ['.mario-img img','.hero-img img','.personaje img']) {
-    const el = doc.querySelector(sel); const s = el?.getAttribute('src')??''
+  const heroSelectors = [
+    'img.mario-img',           // ← FIX: img con clase directa
+    'img.hero-img',
+    'img.personaje',
+    '.mario-wrap img',
+    '.hero-wrap img',
+    '.mario-img img',
+    '.hero-img img',
+  ]
+  for (const sel of heroSelectors) {
+    const s = qattr(sel, 'src') ?? ''
     if (s && !s.startsWith('data:')) { heroImg = s; break }
   }
 
-  // Emojis / decoraciones
+  // Audio
+  const audioSrc = hfind(/(?:src|data-src)="([^"]+\.(?:mp3|ogg|wav|m4a))"/) ?? ''
+
+  // ── EMOJIS / DECORACIONES ─────────────────────────────────────────────────
   const footerEmojis = [...doc.querySelectorAll('.fe')].map(e=>e.textContent.trim()).join(',')
   const tStars = qtext('.t-stars') ?? ''
   const poolRaw = hfind(/const pool = \[([^\]]+)\];/)
   const rainPool = poolRaw ? poolRaw.replace(/['"]/g,'').split(',').map(s=>s.trim()).join(',') : ''
-  const audioSrc = hfind(/(?:src|data-src)="([^"]+\.(?:mp3|ogg|wav|m4a))"/) ?? ''
 
-  // ICS
+  // ── ICS ──────────────────────────────────────────────────────────────────────
   const dtStart  = hfind(/DTSTART:(\d+T\d+)/) ?? ''
   const dtEnd    = hfind(/DTEND:(\d+T\d+)/) ?? ''
   const icsFile  = hfind(/a\.download = ['"]([^'"]+\.ics)['"]/) ?? ''
@@ -121,17 +151,17 @@ export function parseTemplate(html) {
   const icsLoc   = hfind(/LOCATION:([^\r\n]+)/) ?? ''
   const icsAlarm = hfind(/DESCRIPTION:([^\r\n]+)/) ?? ''
 
-  // Valores ORIGINALES para poder hacer replace exacto
+  // ── ORIGINALS para replace exacto ────────────────────────────────────────────
   const originals = {
     titulo,
-    tname:    qtext('.t-name') ?? '',
-    heroNames:qtext('.hero-names') ?? '',
-    day:   qtext('.date-day') ?? dia,
-    month: qtext('.date-month') ?? mes,
-    year:  qtext('.date-year') ?? anio,
+    tname:     qtext('.t-name') ?? '',
+    heroNames: qtext('.hero-names') ?? '',
+    day:    qtext('.date-day') ?? dia,
+    month:  qtext('.date-month') ?? mes,
+    year:   qtext('.date-year') ?? anio,
     timePill: qtext('.date-time-pill') ?? '',
     cdDate:   cdm ?? '',
-    venue:  salon, addr1, addr2, mapsQ: mapsQuery,
+    venue: salon, addr1, addr2, mapsQ: mapsQuery,
     msgSi, footerTxt, coverImg, heroImg, gifSi, gifNo, tStars,
     dtStart, dtEnd, icsFile, icsSumm, icsLoc, icsAlarm,
   }
@@ -180,9 +210,9 @@ export function applyChanges(html, originals, newFields, extra = {}) {
   rep(originals.titulo, newFields.titulo || originals.titulo)
 
   // Fecha en DOM
-  if (originals.day)   rep('<div class="date-day">'   + originals.day   + '</div>', '<div class="date-day">'   + newFields.dia   + '</div>')
-  if (originals.month) rep('<div class="date-month">' + originals.month + '</div>', '<div class="date-month">' + newFields.mes   + '</div>')
-  if (originals.year)  rep('<div class="date-year">'  + originals.year  + '</div>', '<div class="date-year">'  + newFields.anio  + '</div>')
+  if (originals.day)      rep('<div class="date-day">'   + originals.day      + '</div>', '<div class="date-day">'   + newFields.dia  + '</div>')
+  if (originals.month)    rep('<div class="date-month">' + originals.month    + '</div>', '<div class="date-month">' + newFields.mes  + '</div>')
+  if (originals.year)     rep('<div class="date-year">'  + originals.year     + '</div>', '<div class="date-year">'  + newFields.anio + '</div>')
   if (originals.timePill) rep(originals.timePill, '⏰ ' + newFields.hora + ' HS')
 
   // Countdown JS
@@ -199,15 +229,28 @@ export function applyChanges(html, originals, newFields, extra = {}) {
   rep(originals.addr2,  newFields.addr2)
   rep(originals.mapsQ,  newFields.mapsQuery)
 
+  // Maps links — reemplaza query en todos los hrefs de mapas
+  if (newFields.mapsQuery && originals.mapsQ && newFields.mapsQuery !== originals.mapsQ) {
+    const encOld = encodeURIComponent(originals.mapsQ).replace(/%20/g, '+')
+    const encNew = encodeURIComponent(newFields.mapsQuery).replace(/%20/g, '+')
+    out = out.split(encOld).join(encNew)
+    out = out.split(originals.mapsQ.replace(/ /g, '+')).join(encNew)
+    out = out.split(originals.mapsQ.replace(/ /g, '%20')).join(encNew)
+  }
+
   // Mensajes / footer
-  rep(originals.msgSi,    newFields.msgSi)
+  rep(originals.msgSi,     newFields.msgSi)
   rep(originals.footerTxt, newFields.footerTxt)
 
-  // Imágenes
-  if (originals.coverImg) rep('src="' + originals.coverImg + '"', 'src="' + newFields.coverImg + '"')
-  if (originals.heroImg)  rep('src="' + originals.heroImg  + '"', 'src="' + newFields.heroImg  + '"')
-  if (originals.gifSi)    rep('src="' + originals.gifSi    + '"', 'src="' + newFields.gifSi    + '"')
-  if (originals.gifNo)    rep('src="' + originals.gifNo    + '"', 'src="' + newFields.gifNo    + '"')
+  // Imágenes — FIX: reemplaza src independientemente de si es img directa o anidada
+  if (originals.coverImg && newFields.coverImg)
+    out = out.split('src="' + originals.coverImg + '"').join('src="' + newFields.coverImg + '"')
+  if (originals.heroImg && newFields.heroImg)
+    out = out.split('src="' + originals.heroImg  + '"').join('src="' + newFields.heroImg  + '"')
+  if (originals.gifSi && newFields.gifSi)
+    out = out.split('src="' + originals.gifSi    + '"').join('src="' + newFields.gifSi    + '"')
+  if (originals.gifNo && newFields.gifNo)
+    out = out.split('src="' + originals.gifNo    + '"').join('src="' + newFields.gifNo    + '"')
 
   // Decoraciones
   if (originals.tStars && newFields.tStars)
