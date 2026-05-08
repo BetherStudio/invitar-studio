@@ -9,7 +9,7 @@ const supabase = createClient(
 
 // ── Estado global ─────────────────────────────────────────────────────────────
 let originalHtml = null
-let parsed       = null   // { type, cssRoot, originals, fields }
+let parsed       = null
 let currentHtml  = null
 let temaReps     = []
 let localImgUrl  = null
@@ -60,6 +60,7 @@ document.getElementById('root').innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid #2a2a2a;background:#141414;flex-shrink:0">
       <button id="btnLive" onclick="toggleLive()" style="padding:4px 10px;border-radius:5px;border:none;background:#2a2a2a;color:#aaa;cursor:pointer;font-size:10px">▶ Activar visor</button>
       <button onclick="refreshLive()" style="padding:4px 8px;border-radius:5px;border:none;background:#2a2a2a;color:#aaa;cursor:pointer;font-size:10px"><i class="ti ti-refresh" style="font-size:11px"></i></button>
+      <button onclick="openInvite()" style="padding:4px 10px;border-radius:5px;border:none;background:#2a2a2a;color:#aaa;cursor:pointer;font-size:10px" title="Simular click en Abrir Invitación">🎉 Abrir</button>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button onclick="setScale('mobile')" style="padding:3px 8px;border-radius:5px;border:1px solid #333;background:none;color:#888;cursor:pointer;font-size:10px"><i class="ti ti-device-mobile" style="font-size:11px"></i> 375px</button>
         <button onclick="setScale('desktop')" style="padding:3px 8px;border-radius:5px;border:1px solid #333;background:none;color:#888;cursor:pointer;font-size:10px"><i class="ti ti-device-desktop" style="font-size:11px"></i> Full</button>
@@ -71,7 +72,7 @@ document.getElementById('root').innerHTML = `
         <i class="ti ti-eye-off" style="font-size:48px;margin-bottom:12px;opacity:.3"></i>
         <div>Cargá una plantilla para activar el visor</div>
       </div>
-      <iframe id="liveFrame" style="display:none;border:none;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.5);transition:.2s" sandbox="allow-scripts allow-same-origin"></iframe>
+      <iframe id="liveFrame" style="display:none;border:none;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.5);transition:.2s" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
     </div>
   </div>
 
@@ -114,10 +115,6 @@ function renderTab() {
     ${field('f-msgsi',    'Mensaje / frase principal', f.msgSi, null, true)}
     ${field('f-footer',   'Footer',                    f.footerTxt, null, true)}
     <div style="height:1px;background:#2a2a2a;margin:12px 0"></div>
-    ${field('f-cover',    'Cover img (archivo o URL)', f.coverImg)}
-    ${field('f-hero',     'Hero img (archivo o URL)',  f.heroImg)}
-    ${row([field('f-gifsi','GIF Sí',f.gifSi), field('f-gifno','GIF No',f.gifNo)])}
-    <div style="height:1px;background:#2a2a2a;margin:12px 0"></div>
     ${field('f-stars',    'Estrellitas / emojis deco', f.tStars)}
     ${field('f-femojis',  'Footer emojis (separados por coma)', f.footerEmojis)}
     ${field('f-rain',     'Pool lluvia de emojis', f.rainPool)}
@@ -136,9 +133,31 @@ function renderTab() {
       scheduleLive()
     })
   } else if (activeTab === 2) {
+    // ── EFECTOS — tab mejorado ─────────────────────────────────────────────
     el.innerHTML = `
-    <div style="font-size:10px;color:#888;margin-bottom:10px">CSS adicional inyectado en la invitación</div>
-    <textarea id="f-extracss" style="${TA}" rows="10" placeholder="/* CSS extra */\n.mi-clase { color: red; }"></textarea>
+    <div style="font-size:10px;color:#888;margin-bottom:10px">Efectos visuales para inyectar en la invitación</div>
+
+    <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Lluvia de emojis</div>
+    ${field('f-rain', 'Emojis del pool (separados por coma)', parsed?.fields?.rainPool ?? '')}
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      ${['🦖,🌿,🥚','🦋,🌸,🌺','❄️,⛄,🌟','🎉,⭐,🎈','🍄,⭐,🪙'].map(p =>
+        `<button onclick="document.getElementById('f-rain').value='${p}';scheduleLive()" style="${BTN}">${p.split(',')[0]}</button>`
+      ).join('')}
+    </div>
+
+    <div style="height:1px;background:#2a2a2a;margin:12px 0"></div>
+    <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">CSS adicional / efectos custom</div>
+    <textarea id="f-extracss" style="${TA}" rows="8" placeholder="/* CSS extra */\n.mi-clase { color: red; }"></textarea>
+
+    <div style="height:1px;background:#2a2a2a;margin:12px 0"></div>
+    <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Snippets de efectos</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button onclick="injectEffect('nieve')"     style="${BTN} width:100%">❄️ Nieve</button>
+      <button onclick="injectEffect('confetti')"  style="${BTN} width:100%">🎊 Confetti</button>
+      <button onclick="injectEffect('burbujas')"  style="${BTN} width:100%">🫧 Burbujas</button>
+      <button onclick="injectEffect('luciernas')" style="${BTN} width:100%">✨ Luciérnagas</button>
+      <button onclick="injectEffect('petalos')"   style="${BTN} width:100%">🌸 Pétalos</button>
+    </div>
     `
   } else if (activeTab === 3) {
     el.innerHTML = `
@@ -150,6 +169,8 @@ function renderTab() {
     `
     renderTemaList()
   } else if (activeTab === 4) {
+    // ── IMAGEN — tab mejorado con lista de imágenes detectadas ─────────────
+    const imgs = parsed ? detectImages(originalHtml) : []
     el.innerHTML = `
     <div style="font-size:10px;color:#888;margin-bottom:8px">Cargá una imagen desde tu PC para usarla en la invitación</div>
     <div id="imgDrop" style="border:2px dashed #2a2a2a;border-radius:8px;padding:20px;text-align:center;cursor:pointer;background:#0f0f0f;transition:.15s" onclick="document.getElementById('imgInput').click()">
@@ -159,27 +180,198 @@ function renderTab() {
       <div style="color:#555;font-size:10px;margin-top:2px">PNG, JPG, WebP, GIF</div>
     </div>
     <div id="imgPreview" style="display:none;margin-top:12px">
-      <div style="background:repeating-conic-gradient(#333 0% 25%,#222 0% 50%) 0 0/12px 12px;border-radius:8px;overflow:hidden;max-height:200px;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
-        <img id="imgThumb" style="max-width:100%;max-height:200px;object-fit:contain">
+      <div style="background:repeating-conic-gradient(#333 0% 25%,#222 0% 50%) 0 0/12px 12px;border-radius:8px;overflow:hidden;max-height:160px;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <img id="imgThumb" style="max-width:100%;max-height:160px;object-fit:contain">
       </div>
       <div id="imgName" style="font-size:10px;color:#888;margin-bottom:8px"></div>
+
+      ${imgs.length ? `
+      <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Imágenes detectadas en la plantilla</div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px" id="detectedImgs">
+        ${imgs.map((img,i) => `
+        <button onclick="replaceDetectedImg('${img.src}')" style="${BTN} width:100%;justify-content:flex-start;gap:8px;overflow:hidden">
+          <span style="flex-shrink:0;font-size:13px">${img.icon}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left">${img.label}</span>
+          <span style="flex-shrink:0;font-size:9px;color:#555">${img.src.slice(-18)}</span>
+        </button>`).join('')}
+      </div>
+      ` : ''}
+
+      <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">O aplicar como</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <button onclick="useImgAs('cover')" style="${BTN}"><i class="ti ti-layout-bottombar" style="font-size:11px"></i> Fondo portada</button>
-        <button onclick="useImgAs('main')" style="${BTN}"><i class="ti ti-background" style="font-size:11px"></i> Fondo scroll</button>
-        <button onclick="useImgAs('hero')" style="${BTN}"><i class="ti ti-user" style="font-size:11px"></i> Hero img</button>
+        <button onclick="useImgAs('cover')"     style="${BTN}"><i class="ti ti-layout-bottombar" style="font-size:11px"></i> Fondo portada</button>
+        <button onclick="useImgAs('main')"      style="${BTN}"><i class="ti ti-background" style="font-size:11px"></i> Fondo scroll</button>
+        <button onclick="useImgAs('hero')"      style="${BTN}"><i class="ti ti-user" style="font-size:11px"></i> Hero img</button>
         <button onclick="useImgAs('cover-img')" style="${BTN}"><i class="ti ti-photo" style="font-size:11px"></i> Cover img</button>
-        <button onclick="useImgAs('gifsi')" style="${BTN}"><i class="ti ti-mood-happy" style="font-size:11px"></i> GIF Sí</button>
-        <button onclick="useImgAs('gifno')" style="${BTN}"><i class="ti ti-mood-sad" style="font-size:11px"></i> GIF No</button>
+        <button onclick="useImgAs('gifsi')"     style="${BTN}"><i class="ti ti-mood-happy" style="font-size:11px"></i> GIF Sí</button>
+        <button onclick="useImgAs('gifno')"     style="${BTN}"><i class="ti ti-mood-sad" style="font-size:11px"></i> GIF No</button>
       </div>
     </div>
     `
     initImgLoader()
   }
 
-  // Bind live updates
   document.querySelectorAll('#tabContent input, #tabContent textarea, #tabContent select').forEach(el => {
     el.addEventListener('input', scheduleLive)
   })
+}
+
+// ── Detectar imágenes en el HTML ──────────────────────────────────────────────
+function detectImages(html) {
+  if (!html) return []
+  const results = []
+  const seen = new Set()
+  const iconMap = {
+    gif: '🎞️', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', webp: '🖼️', svg: '🖼️'
+  }
+  const labelMap = src => {
+    if (src.includes('cover')) return 'Cover / portada'
+    if (src.includes('mario') || src.includes('hero') || src.includes('personaje')) return 'Hero / personaje'
+    if (/si|yes|sí/i.test(src)) return 'GIF — Sí voy'
+    if (/no/i.test(src)) return 'GIF — No voy'
+    if (/juego|game/i.test(src)) return 'Sprite juego'
+    return src
+  }
+  const rx = /src="([^"]+\.(png|jpg|jpeg|gif|webp|svg))"/gi
+  let m
+  while ((m = rx.exec(html)) !== null) {
+    const src = m[1]
+    if (src.startsWith('data:') || seen.has(src)) continue
+    seen.add(src)
+    const ext = src.split('.').pop().toLowerCase()
+    results.push({ src, icon: iconMap[ext] ?? '🖼️', label: labelMap(src) })
+  }
+  return results
+}
+
+// ── Reemplazar imagen detectada por la cargada ────────────────────────────────
+window.replaceDetectedImg = function(originalSrc) {
+  if (!localImgUrl) { toast('Cargá una imagen primero', 'warn'); return }
+  if (!originalHtml) return
+  originalHtml = originalHtml.split(`src="${originalSrc}"`).join(`src="${localImgUrl}"`)
+  if (parsed) {
+    // Actualizar originals también
+    Object.keys(parsed.originals).forEach(k => {
+      if (parsed.originals[k] === originalSrc) parsed.originals[k] = localImgUrl
+    })
+    Object.keys(parsed.fields).forEach(k => {
+      if (parsed.fields[k] === originalSrc) parsed.fields[k] = localImgUrl
+    })
+  }
+  scheduleLive()
+  toast(`✓ ${originalSrc.slice(-20)} reemplazada`)
+  renderTab() // refrescar lista
+}
+
+// ── Inyectar efectos ──────────────────────────────────────────────────────────
+const EFFECTS = {
+  nieve: `
+/* ── Nieve ── */
+(function(){
+  const c=document.createElement('div');
+  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
+  document.body.appendChild(c);
+  function sp(){
+    const e=document.createElement('div');
+    const s=6+Math.random()*10;
+    e.style.cssText=\`position:absolute;top:-20px;left:\${Math.random()*100}vw;width:\${s}px;height:\${s}px;background:rgba(255,255,255,0.85);border-radius:50%;animation:snowFall \${4+Math.random()*6}s linear infinite;\`;
+    c.appendChild(e);
+    setTimeout(()=>e.remove(),(10+Math.random()*6)*1000);
+  }
+  if(!document.getElementById('snowKf')){const st=document.createElement('style');st.id='snowKf';st.textContent='@keyframes snowFall{0%{transform:translateY(-20px) rotate(0)}100%{transform:translateY(110vh) rotate(720deg)}}';document.head.appendChild(st);}
+  for(let i=0;i<30;i++) setTimeout(sp,i*200);
+  setInterval(sp,600);
+})();`,
+  confetti: `
+/* ── Confetti ── */
+(function(){
+  const cols=['#E60012','#009AC7','#F7C94B','#2ECC40','#FF8C00','#fff'];
+  const c=document.createElement('div');
+  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
+  document.body.appendChild(c);
+  function sp(){
+    const e=document.createElement('div');
+    const col=cols[Math.floor(Math.random()*cols.length)];
+    const w=6+Math.random()*8, h=w*0.4;
+    e.style.cssText=\`position:absolute;top:-20px;left:\${Math.random()*100}vw;width:\${w}px;height:\${h}px;background:\${col};opacity:.85;animation:confFall \${3+Math.random()*5}s linear infinite;\`;
+    c.appendChild(e);
+    setTimeout(()=>e.remove(),(8+Math.random()*5)*1000);
+  }
+  if(!document.getElementById('confKf')){const st=document.createElement('style');st.id='confKf';st.textContent='@keyframes confFall{0%{transform:translateY(-20px) rotate(0) scaleX(1)}50%{scaleX(-1)}100%{transform:translateY(110vh) rotate(720deg) scaleX(1)}}';document.head.appendChild(st);}
+  for(let i=0;i<40;i++) setTimeout(sp,i*150);
+  setInterval(sp,400);
+})();`,
+  burbujas: `
+/* ── Burbujas ── */
+(function(){
+  const c=document.createElement('div');
+  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
+  document.body.appendChild(c);
+  function sp(){
+    const e=document.createElement('div');
+    const s=14+Math.random()*30;
+    e.style.cssText=\`position:absolute;bottom:-40px;left:\${Math.random()*100}vw;width:\${s}px;height:\${s}px;border:2px solid rgba(255,255,255,0.5);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,0.35),transparent 70%);animation:bubbleUp \${5+Math.random()*7}s ease-in infinite;\`;
+    c.appendChild(e);
+    setTimeout(()=>e.remove(),(12+Math.random()*7)*1000);
+  }
+  if(!document.getElementById('bubKf')){const st=document.createElement('style');st.id='bubKf';st.textContent='@keyframes bubbleUp{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-110vh) scale(0.5);opacity:0}}';document.head.appendChild(st);}
+  for(let i=0;i<20;i++) setTimeout(sp,i*300);
+  setInterval(sp,700);
+})();`,
+  luciernas: `
+/* ── Luciérnagas ── */
+(function(){
+  const c=document.createElement('div');
+  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000';
+  document.body.appendChild(c);
+  const cols=['#ffe066','#c0ff60','#60ffaa'];
+  for(let i=0;i<22;i++){
+    const e=document.createElement('div');
+    const s=4+Math.random()*5;
+    const col=cols[Math.floor(Math.random()*cols.length)];
+    const dur=3+Math.random()*4;
+    const dx=(Math.random()-0.5)*60, dy=(Math.random()-0.5)*60;
+    e.style.cssText=\`position:absolute;left:\${Math.random()*95}vw;top:\${20+Math.random()*70}vh;width:\${s}px;height:\${s}px;background:\${col};border-radius:50%;box-shadow:0 0 \${s*3}px \${col};animation:firefly\${i} \${dur}s ease-in-out infinite alternate;\`;
+    const st=document.createElement('style');
+    st.textContent=\`@keyframes firefly\${i}{0%{transform:translate(0,0);opacity:0.2}50%{opacity:1}100%{transform:translate(\${dx}px,\${dy}px);opacity:0.3}}\`;
+    document.head.appendChild(st);
+    c.appendChild(e);
+  }
+})();`,
+  petalos: `
+/* ── Pétalos ── */
+(function(){
+  const c=document.createElement('div');
+  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
+  document.body.appendChild(c);
+  const emojis=['🌸','🌺','🌹','🌷'];
+  function sp(){
+    const e=document.createElement('div');
+    e.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    const s=0.7+Math.random()*1.2;
+    e.style.cssText=\`position:absolute;top:-40px;left:\${Math.random()*100}vw;font-size:\${s}rem;opacity:0.8;animation:petalFall \${5+Math.random()*6}s linear infinite;\`;
+    c.appendChild(e);
+    setTimeout(()=>e.remove(),(11+Math.random()*6)*1000);
+  }
+  if(!document.getElementById('petKf')){const st=document.createElement('style');st.id='petKf';st.textContent='@keyframes petalFall{0%{transform:translateY(-40px) rotate(0) translateX(0)}25%{transform:translateY(25vh) rotate(90deg) translateX(20px)}50%{transform:translateY(50vh) rotate(180deg) translateX(-15px)}75%{transform:translateY(75vh) rotate(270deg) translateX(10px)}100%{transform:translateY(110vh) rotate(360deg) translateX(0)}}';document.head.appendChild(st);}
+  for(let i=0;i<18;i++) setTimeout(sp,i*250);
+  setInterval(sp,600);
+})();`
+}
+
+window.injectEffect = function(name) {
+  const code = EFFECTS[name]
+  if (!code) return
+  const f = document.getElementById('f-extracss')
+  if (f) {
+    // Evitar duplicados
+    if (f.value.includes(`/* ── ${name.charAt(0).toUpperCase()+name.slice(1)}`)) {
+      toast('Ese efecto ya está agregado', 'warn'); return
+    }
+    f.value = (f.value ? f.value + '\n\n' : '') + `<script>\n${code.trim()}\n<\/script>`
+  }
+  scheduleLive()
+  toast(`✓ Efecto ${name} agregado`)
 }
 
 // ── Helpers de UI ─────────────────────────────────────────────────────────────
@@ -228,7 +420,6 @@ function loadHtml(html, filename) {
   const badge = document.getElementById('statusBadge')
   if (badge) { badge.textContent = `${filename ?? 'HTML'} · ${parsed.type}`; badge.style.background = '#1a2e0f'; badge.style.color = '#c0dd97' }
 
-  // Toast
   toast(`✓ ${Object.values(parsed.fields).filter(Boolean).length} campos detectados · Plantilla ${parsed.type}`)
 
   renderTab()
@@ -249,35 +440,35 @@ dz.addEventListener('drop', e => {
   const r = new FileReader(); r.onload = ev => loadHtml(ev.target.result, f.name); r.readAsText(f, 'utf-8')
 })
 
-// ── Recopilar campos del formulario ──────────────────────────────────────────
+// ── Recopilar campos ──────────────────────────────────────────────────────────
 function getFields() {
   return {
-    titulo:      cv('f-titulo'),
-    nombre:      cv('f-nombre'),
-    dia:         cv('f-dia'),
-    mes:         cv('f-mes'),
-    anio:        cv('f-anio'),
-    hora:        cv('f-hora'),
-    salon:       cv('f-salon'),
-    addr1:       cv('f-addr1'),
-    addr2:       cv('f-addr2'),
-    mapsQuery:   cv('f-maps'),
-    msgSi:       cv('f-msgsi'),
-    footerTxt:   cv('f-footer'),
-    coverImg:    cv('f-cover'),
-    heroImg:     cv('f-hero'),
-    gifSi:       cv('f-gifsi'),
-    gifNo:       cv('f-gifno'),
-    tStars:      cv('f-stars'),
-    footerEmojis:cv('f-femojis'),
-    rainPool:    cv('f-rain'),
+    titulo:       cv('f-titulo'),
+    nombre:       cv('f-nombre'),
+    dia:          cv('f-dia'),
+    mes:          cv('f-mes'),
+    anio:         cv('f-anio'),
+    hora:         cv('f-hora'),
+    salon:        cv('f-salon'),
+    addr1:        cv('f-addr1'),
+    addr2:        cv('f-addr2'),
+    mapsQuery:    cv('f-maps'),
+    msgSi:        cv('f-msgsi'),
+    footerTxt:    cv('f-footer'),
+    coverImg:     cv('f-cover') || parsed?.fields?.coverImg || '',
+    heroImg:      cv('f-hero')  || parsed?.fields?.heroImg  || '',
+    gifSi:        cv('f-gifsi') || parsed?.fields?.gifSi    || '',
+    gifNo:        cv('f-gifno') || parsed?.fields?.gifNo    || '',
+    tStars:       cv('f-stars'),
+    footerEmojis: cv('f-femojis'),
+    rainPool:     cv('f-rain'),
   }
 }
 
 function getExtra() {
   return {
-    cssRoot:   cv('f-cssroot'),
-    extraCss:  cv('f-extracss'),
+    cssRoot:  cv('f-cssroot'),
+    extraCss: cv('f-extracss'),
     temaReps,
   }
 }
@@ -297,7 +488,6 @@ document.getElementById('btnExport').addEventListener('click', () => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
   a.download = `invitar-${slug}.html`; a.click(); URL.revokeObjectURL(a.href)
   toast('✓ HTML exportado')
-  // Guardar en Supabase si está logueado
   saveToSupabase(html, slug)
 })
 
@@ -327,11 +517,31 @@ window.toggleLive = toggleLive
 function refreshLive() { if (originalHtml) { liveActive = true; iframeReady = false; updateLive() } }
 window.refreshLive = refreshLive
 
-function setScale(s) {
-  liveScale = s
-  resizeFrame()
-}
+function setScale(s) { liveScale = s; resizeFrame() }
 window.setScale = setScale
+
+// ── FIX: botón Abrir Invitación en el visor ───────────────────────────────────
+function openInvite() {
+  if (!liveActive || !iframeReady) { toast('Activá el visor primero', 'warn'); return }
+  try {
+    const doc = frame.contentDocument ?? frame.contentWindow.document
+    const btn = doc.getElementById('btnOpen')
+      ?? doc.querySelector('.btn-open')
+      ?? doc.querySelector('[id*="open"],[class*="open-btn"],[class*="btn-open"]')
+    if (btn) {
+      btn.click()
+      toast('✓ Invitación abierta')
+    } else {
+      const cover = doc.getElementById('cover-screen') ?? doc.querySelector('[id*="cover"]')
+      const main  = doc.getElementById('main-invite')  ?? doc.querySelector('[id*="main-invite"]')
+      if (cover) { cover.style.display = 'none'; cover.style.opacity = '0' }
+      if (main)  { main.classList.remove('hidden'); main.style.display = '' }
+      if (!cover && !main) toast('No se encontró portada en esta plantilla', 'warn')
+      else toast('✓ Portada omitida')
+    }
+  } catch(e) { toast('Error al abrir: ' + e.message, 'warn') }
+}
+window.openInvite = openInvite
 
 function resizeFrame() {
   const wrap = document.getElementById('iframeWrap')
@@ -382,7 +592,6 @@ window.parseTema = function () {
   const raw = cv('f-temaraw'); if (!raw) return
   const log = []
 
-  // :root
   const rm = raw.match(/:root\s*\{([^}]+)\}/s)
   if (rm) {
     const f = document.getElementById('f-cssroot')
@@ -391,7 +600,6 @@ window.parseTema = function () {
     log.push('Paleta CSS')
   }
 
-  // @import
   const imports = raw.match(/@import\s+url\([^)]+\)[^;]*;/g)
   if (imports) {
     const f = document.getElementById('f-extracss')
@@ -399,7 +607,6 @@ window.parseTema = function () {
     log.push('Tipografía @import')
   }
 
-  // Reemplazos con →
   temaReps = []
   raw.split('\n').forEach(line => {
     line = line.trim()
@@ -466,7 +673,6 @@ window.useImgAs = function (target) {
   if (map[target]) {
     const f = document.getElementById(map[target]); if (f) f.value = localImgUrl
   } else if (target === 'cover' || target === 'main') {
-    // Fondo: inyectar como CSS en extra
     const f = document.getElementById('f-extracss')
     const sel = target === 'cover' ? '#cover-screen' : '#main-invite'
     const css = `\n${sel} { background-image: url("${localImgUrl}") !important; background-size: cover !important; background-position: center !important; }\n`
@@ -477,30 +683,23 @@ window.useImgAs = function (target) {
 }
 
 // ── Supabase Auth con clave maestra ──────────────────────────────────────────
-const MASTER_KEY = '124578963#'   // ← cambiá esto por tu clave
+const MASTER_KEY = '124578963#'
 
 function showLoginScreen() {
   const overlay = document.createElement('div')
   overlay.id = 'loginOverlay'
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:#0f0f0f;z-index:99999;
-    display:flex;align-items:center;justify-content:center;
-  `
+  overlay.style.cssText = `position:fixed;inset:0;background:#0f0f0f;z-index:99999;display:flex;align-items:center;justify-content:center;`
   overlay.innerHTML = `
     <div style="background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:36px 32px;width:320px;text-align:center">
       <div style="font-weight:700;font-size:18px;color:#c0dd97;margin-bottom:4px">InvitAR Studio</div>
       <div style="font-size:11px;color:#555;margin-bottom:24px">Acceso privado</div>
       <input id="loginInput" type="password" placeholder="Contraseña"
-        style="width:100%;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:6px;
-               color:#e0e0e0;padding:10px 12px;font-size:13px;font-family:inherit;
-               outline:none;margin-bottom:10px;text-align:center"
+        style="width:100%;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:6px;color:#e0e0e0;padding:10px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:10px;text-align:center"
         onkeydown="if(event.key==='Enter') window._doLogin()"
       >
       <div id="loginError" style="font-size:10px;color:#e24b4a;margin-bottom:8px;min-height:14px"></div>
       <button onclick="window._doLogin()"
-        style="width:100%;padding:10px;border-radius:6px;border:none;
-               background:#c0dd97;color:#0f0f0f;cursor:pointer;
-               font-size:13px;font-weight:700">
+        style="width:100%;padding:10px;border-radius:6px;border:none;background:#c0dd97;color:#0f0f0f;cursor:pointer;font-size:13px;font-weight:700">
         Entrar
       </button>
     </div>
@@ -523,14 +722,13 @@ window._doLogin = function () {
   }
 }
 
-// ── Init Auth ────────────────────────────────────────────────────────────────
 if (sessionStorage.getItem('invitar_auth') === '1') {
   supabase.auth.signInAnonymously().catch(() => {})
 } else {
   showLoginScreen()
 }
 
-// ── Utils ────────────────────────────────────────────────────────────────────
+// ── Utils ─────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'ok') {
   const t = document.createElement('div')
   t.style.cssText = `position:fixed;bottom:20px;right:20px;background:${type === 'warn' ? '#2e1a0a' : '#1a2e0f'};color:${type === 'warn' ? '#f0a060' : '#c0dd97'};padding:10px 16px;border-radius:8px;font-size:11px;z-index:9999;max-width:300px;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.5);border:1px solid ${type === 'warn' ? '#4a2a0a' : '#2d4a1e'}`
@@ -539,5 +737,5 @@ function toast(msg, type = 'ok') {
   setTimeout(() => t.remove(), 4000)
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
 renderTab()
