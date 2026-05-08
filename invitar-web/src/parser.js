@@ -154,7 +154,7 @@ export function parseTemplate(html) {
   // ── ORIGINALS para replace exacto ────────────────────────────────────────────
   const originals = {
     titulo,
-    tname:     qtext('.t-name') ?? '',
+    tname:     doc.querySelector('.t-name')?.innerHTML?.trim() ?? '',
     heroNames: qtext('.hero-names') ?? '',
     day:    qtext('.date-day') ?? dia,
     month:  qtext('.date-month') ?? mes,
