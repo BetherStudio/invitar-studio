@@ -476,13 +476,59 @@ window.useImgAs = function (target) {
   toast('✓ Imagen aplicada')
 }
 
-// ── Supabase Auth (básico) ────────────────────────────────────────────────────
-supabase.auth.getSession().then(({ data }) => {
-  if (!data.session) {
-    // Auto login anónimo si no hay sesión
+// ── Supabase Auth con clave maestra ──────────────────────────────────────────
+const MASTER_KEY = '124578963#'   // ← cambiá esto por tu clave
+
+function showLoginScreen() {
+  const overlay = document.createElement('div')
+  overlay.id = 'loginOverlay'
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:#0f0f0f;z-index:99999;
+    display:flex;align-items:center;justify-content:center;
+  `
+  overlay.innerHTML = `
+    <div style="background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:36px 32px;width:320px;text-align:center">
+      <div style="font-weight:700;font-size:18px;color:#c0dd97;margin-bottom:4px">InvitAR Studio</div>
+      <div style="font-size:11px;color:#555;margin-bottom:24px">Acceso privado</div>
+      <input id="loginInput" type="password" placeholder="Contraseña"
+        style="width:100%;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:6px;
+               color:#e0e0e0;padding:10px 12px;font-size:13px;font-family:inherit;
+               outline:none;margin-bottom:10px;text-align:center"
+        onkeydown="if(event.key==='Enter') window._doLogin()"
+      >
+      <div id="loginError" style="font-size:10px;color:#e24b4a;margin-bottom:8px;min-height:14px"></div>
+      <button onclick="window._doLogin()"
+        style="width:100%;padding:10px;border-radius:6px;border:none;
+               background:#c0dd97;color:#0f0f0f;cursor:pointer;
+               font-size:13px;font-weight:700">
+        Entrar
+      </button>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  setTimeout(() => document.getElementById('loginInput')?.focus(), 50)
+}
+
+window._doLogin = function () {
+  const val = document.getElementById('loginInput')?.value ?? ''
+  if (val === MASTER_KEY) {
+    sessionStorage.setItem('invitar_auth', '1')
+    document.getElementById('loginOverlay')?.remove()
     supabase.auth.signInAnonymously().catch(() => {})
+  } else {
+    const err = document.getElementById('loginError')
+    if (err) { err.textContent = 'Contraseña incorrecta'; setTimeout(() => err.textContent = '', 2000) }
+    document.getElementById('loginInput').value = ''
+    document.getElementById('loginInput').focus()
   }
-})
+}
+
+// ── Init Auth ────────────────────────────────────────────────────────────────
+if (sessionStorage.getItem('invitar_auth') === '1') {
+  supabase.auth.signInAnonymously().catch(() => {})
+} else {
+  showLoginScreen()
+}
 
 // ── Utils ────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'ok') {
