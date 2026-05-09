@@ -80,7 +80,6 @@ document.getElementById('root').innerHTML = `
 `
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const TABS = ['evento', 'colores', 'efectos', 'tematica', 'imagen']
 let activeTab = 0
 
 document.getElementById('tabs').addEventListener('click', e => {
@@ -133,10 +132,8 @@ function renderTab() {
       scheduleLive()
     })
   } else if (activeTab === 2) {
-    // ── EFECTOS — tab mejorado ─────────────────────────────────────────────
     el.innerHTML = `
     <div style="font-size:10px;color:#888;margin-bottom:10px">Efectos visuales para inyectar en la invitación</div>
-
     <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Lluvia de emojis</div>
     ${field('f-rain', 'Emojis del pool (separados por coma)', parsed?.fields?.rainPool ?? '')}
     <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
@@ -144,11 +141,9 @@ function renderTab() {
         `<button onclick="document.getElementById('f-rain').value='${p}';scheduleLive()" style="${BTN}">${p.split(',')[0]}</button>`
       ).join('')}
     </div>
-
     <div style="height:1px;background:#2a2a2a;margin:12px 0"></div>
     <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">CSS adicional / efectos custom</div>
     <textarea id="f-extracss" style="${TA}" rows="8" placeholder="/* CSS extra */\n.mi-clase { color: red; }"></textarea>
-
     <div style="height:1px;background:#2a2a2a;margin:12px 0"></div>
     <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Snippets de efectos</div>
     <div style="display:flex;flex-direction:column;gap:6px">
@@ -169,7 +164,6 @@ function renderTab() {
     `
     renderTemaList()
   } else if (activeTab === 4) {
-    // ── IMAGEN — tab mejorado con lista de imágenes detectadas ─────────────
     const imgs = parsed ? detectImages(originalHtml) : []
     el.innerHTML = `
     <div style="font-size:10px;color:#888;margin-bottom:8px">Cargá una imagen desde tu PC para usarla en la invitación</div>
@@ -184,7 +178,6 @@ function renderTab() {
         <img id="imgThumb" style="max-width:100%;max-height:160px;object-fit:contain">
       </div>
       <div id="imgName" style="font-size:10px;color:#888;margin-bottom:8px"></div>
-
       ${imgs.length ? `
       <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Imágenes detectadas en la plantilla</div>
       <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px" id="detectedImgs">
@@ -196,7 +189,6 @@ function renderTab() {
         </button>`).join('')}
       </div>
       ` : ''}
-
       <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">O aplicar como</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
         <button onclick="useImgAs('cover')"     style="${BTN}"><i class="ti ti-layout-bottombar" style="font-size:11px"></i> Fondo portada</button>
@@ -216,17 +208,15 @@ function renderTab() {
   })
 }
 
-// ── Detectar imágenes en el HTML ──────────────────────────────────────────────
+// ── Detectar imágenes ─────────────────────────────────────────────────────────
 function detectImages(html) {
   if (!html) return []
   const results = []
   const seen = new Set()
-  const iconMap = {
-    gif: '🎞️', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', webp: '🖼️', svg: '🖼️'
-  }
+  const iconMap = { gif:'🎞️', jpg:'🖼️', jpeg:'🖼️', png:'🖼️', webp:'🖼️', svg:'🖼️' }
   const labelMap = src => {
     if (src.includes('cover')) return 'Cover / portada'
-    if (src.includes('mario') || src.includes('hero') || src.includes('personaje')) return 'Hero / personaje'
+    if (/mario|hero|personaje/i.test(src)) return 'Hero / personaje'
     if (/si|yes|sí/i.test(src)) return 'GIF — Sí voy'
     if (/no/i.test(src)) return 'GIF — No voy'
     if (/juego|game/i.test(src)) return 'Sprite juego'
@@ -244,134 +234,37 @@ function detectImages(html) {
   return results
 }
 
-// ── Reemplazar imagen detectada por la cargada ────────────────────────────────
 window.replaceDetectedImg = function(originalSrc) {
   if (!localImgUrl) { toast('Cargá una imagen primero', 'warn'); return }
   if (!originalHtml) return
   originalHtml = originalHtml.split(`src="${originalSrc}"`).join(`src="${localImgUrl}"`)
   if (parsed) {
-    // Actualizar originals también
-    Object.keys(parsed.originals).forEach(k => {
-      if (parsed.originals[k] === originalSrc) parsed.originals[k] = localImgUrl
-    })
-    Object.keys(parsed.fields).forEach(k => {
-      if (parsed.fields[k] === originalSrc) parsed.fields[k] = localImgUrl
-    })
+    Object.keys(parsed.originals).forEach(k => { if (parsed.originals[k] === originalSrc) parsed.originals[k] = localImgUrl })
+    Object.keys(parsed.fields).forEach(k => { if (parsed.fields[k] === originalSrc) parsed.fields[k] = localImgUrl })
   }
   scheduleLive()
   toast(`✓ ${originalSrc.slice(-20)} reemplazada`)
-  renderTab() // refrescar lista
+  renderTab()
 }
 
-// ── Inyectar efectos ──────────────────────────────────────────────────────────
+// ── Efectos ───────────────────────────────────────────────────────────────────
 const EFFECTS = {
-  nieve: `
-/* ── Nieve ── */
-(function(){
-  const c=document.createElement('div');
-  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
-  document.body.appendChild(c);
-  function sp(){
-    const e=document.createElement('div');
-    const s=6+Math.random()*10;
-    e.style.cssText=\`position:absolute;top:-20px;left:\${Math.random()*100}vw;width:\${s}px;height:\${s}px;background:rgba(255,255,255,0.85);border-radius:50%;animation:snowFall \${4+Math.random()*6}s linear infinite;\`;
-    c.appendChild(e);
-    setTimeout(()=>e.remove(),(10+Math.random()*6)*1000);
-  }
-  if(!document.getElementById('snowKf')){const st=document.createElement('style');st.id='snowKf';st.textContent='@keyframes snowFall{0%{transform:translateY(-20px) rotate(0)}100%{transform:translateY(110vh) rotate(720deg)}}';document.head.appendChild(st);}
-  for(let i=0;i<30;i++) setTimeout(sp,i*200);
-  setInterval(sp,600);
-})();`,
-  confetti: `
-/* ── Confetti ── */
-(function(){
-  const cols=['#E60012','#009AC7','#F7C94B','#2ECC40','#FF8C00','#fff'];
-  const c=document.createElement('div');
-  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
-  document.body.appendChild(c);
-  function sp(){
-    const e=document.createElement('div');
-    const col=cols[Math.floor(Math.random()*cols.length)];
-    const w=6+Math.random()*8, h=w*0.4;
-    e.style.cssText=\`position:absolute;top:-20px;left:\${Math.random()*100}vw;width:\${w}px;height:\${h}px;background:\${col};opacity:.85;animation:confFall \${3+Math.random()*5}s linear infinite;\`;
-    c.appendChild(e);
-    setTimeout(()=>e.remove(),(8+Math.random()*5)*1000);
-  }
-  if(!document.getElementById('confKf')){const st=document.createElement('style');st.id='confKf';st.textContent='@keyframes confFall{0%{transform:translateY(-20px) rotate(0) scaleX(1)}50%{scaleX(-1)}100%{transform:translateY(110vh) rotate(720deg) scaleX(1)}}';document.head.appendChild(st);}
-  for(let i=0;i<40;i++) setTimeout(sp,i*150);
-  setInterval(sp,400);
-})();`,
-  burbujas: `
-/* ── Burbujas ── */
-(function(){
-  const c=document.createElement('div');
-  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
-  document.body.appendChild(c);
-  function sp(){
-    const e=document.createElement('div');
-    const s=14+Math.random()*30;
-    e.style.cssText=\`position:absolute;bottom:-40px;left:\${Math.random()*100}vw;width:\${s}px;height:\${s}px;border:2px solid rgba(255,255,255,0.5);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,0.35),transparent 70%);animation:bubbleUp \${5+Math.random()*7}s ease-in infinite;\`;
-    c.appendChild(e);
-    setTimeout(()=>e.remove(),(12+Math.random()*7)*1000);
-  }
-  if(!document.getElementById('bubKf')){const st=document.createElement('style');st.id='bubKf';st.textContent='@keyframes bubbleUp{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-110vh) scale(0.5);opacity:0}}';document.head.appendChild(st);}
-  for(let i=0;i<20;i++) setTimeout(sp,i*300);
-  setInterval(sp,700);
-})();`,
-  luciernas: `
-/* ── Luciérnagas ── */
-(function(){
-  const c=document.createElement('div');
-  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000';
-  document.body.appendChild(c);
-  const cols=['#ffe066','#c0ff60','#60ffaa'];
-  for(let i=0;i<22;i++){
-    const e=document.createElement('div');
-    const s=4+Math.random()*5;
-    const col=cols[Math.floor(Math.random()*cols.length)];
-    const dur=3+Math.random()*4;
-    const dx=(Math.random()-0.5)*60, dy=(Math.random()-0.5)*60;
-    e.style.cssText=\`position:absolute;left:\${Math.random()*95}vw;top:\${20+Math.random()*70}vh;width:\${s}px;height:\${s}px;background:\${col};border-radius:50%;box-shadow:0 0 \${s*3}px \${col};animation:firefly\${i} \${dur}s ease-in-out infinite alternate;\`;
-    const st=document.createElement('style');
-    st.textContent=\`@keyframes firefly\${i}{0%{transform:translate(0,0);opacity:0.2}50%{opacity:1}100%{transform:translate(\${dx}px,\${dy}px);opacity:0.3}}\`;
-    document.head.appendChild(st);
-    c.appendChild(e);
-  }
-})();`,
-  petalos: `
-/* ── Pétalos ── */
-(function(){
-  const c=document.createElement('div');
-  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';
-  document.body.appendChild(c);
-  const emojis=['🌸','🌺','🌹','🌷'];
-  function sp(){
-    const e=document.createElement('div');
-    e.textContent=emojis[Math.floor(Math.random()*emojis.length)];
-    const s=0.7+Math.random()*1.2;
-    e.style.cssText=\`position:absolute;top:-40px;left:\${Math.random()*100}vw;font-size:\${s}rem;opacity:0.8;animation:petalFall \${5+Math.random()*6}s linear infinite;\`;
-    c.appendChild(e);
-    setTimeout(()=>e.remove(),(11+Math.random()*6)*1000);
-  }
-  if(!document.getElementById('petKf')){const st=document.createElement('style');st.id='petKf';st.textContent='@keyframes petalFall{0%{transform:translateY(-40px) rotate(0) translateX(0)}25%{transform:translateY(25vh) rotate(90deg) translateX(20px)}50%{transform:translateY(50vh) rotate(180deg) translateX(-15px)}75%{transform:translateY(75vh) rotate(270deg) translateX(10px)}100%{transform:translateY(110vh) rotate(360deg) translateX(0)}}';document.head.appendChild(st);}
-  for(let i=0;i<18;i++) setTimeout(sp,i*250);
-  setInterval(sp,600);
-})();`
+  nieve: `(function(){const c=document.createElement('div');c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';document.body.appendChild(c);function sp(){const e=document.createElement('div');const s=6+Math.random()*10;e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*100+'vw;width:'+s+'px;height:'+s+'px;background:rgba(255,255,255,0.85);border-radius:50%;animation:snowFall '+(4+Math.random()*6)+'s linear infinite;';c.appendChild(e);setTimeout(()=>e.remove(),(10+Math.random()*6)*1000);}if(!document.getElementById('snowKf')){const st=document.createElement('style');st.id='snowKf';st.textContent='@keyframes snowFall{0%{transform:translateY(-20px) rotate(0)}100%{transform:translateY(110vh) rotate(720deg)}}';document.head.appendChild(st);}for(let i=0;i<30;i++)setTimeout(sp,i*200);setInterval(sp,600);})();`,
+  confetti: `(function(){const cols=['#E60012','#009AC7','#F7C94B','#2ECC40','#FF8C00','#fff'];const c=document.createElement('div');c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';document.body.appendChild(c);function sp(){const e=document.createElement('div');const col=cols[Math.floor(Math.random()*cols.length)];const w=6+Math.random()*8,h=w*0.4;e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*100+'vw;width:'+w+'px;height:'+h+'px;background:'+col+';opacity:.85;animation:confFall '+(3+Math.random()*5)+'s linear infinite;';c.appendChild(e);setTimeout(()=>e.remove(),(8+Math.random()*5)*1000);}if(!document.getElementById('confKf')){const st=document.createElement('style');st.id='confKf';st.textContent='@keyframes confFall{0%{transform:translateY(-20px) rotate(0)}100%{transform:translateY(110vh) rotate(720deg)}}';document.head.appendChild(st);}for(let i=0;i<40;i++)setTimeout(sp,i*150);setInterval(sp,400);})();`,
+  burbujas: `(function(){const c=document.createElement('div');c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';document.body.appendChild(c);function sp(){const e=document.createElement('div');const s=14+Math.random()*30;e.style.cssText='position:absolute;bottom:-40px;left:'+Math.random()*100+'vw;width:'+s+'px;height:'+s+'px;border:2px solid rgba(255,255,255,0.5);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,0.35),transparent 70%);animation:bubbleUp '+(5+Math.random()*7)+'s ease-in infinite;';c.appendChild(e);setTimeout(()=>e.remove(),(12+Math.random()*7)*1000);}if(!document.getElementById('bubKf')){const st=document.createElement('style');st.id='bubKf';st.textContent='@keyframes bubbleUp{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-110vh) scale(0.5);opacity:0}}';document.head.appendChild(st);}for(let i=0;i<20;i++)setTimeout(sp,i*300);setInterval(sp,700);})();`,
+  luciernas: `(function(){const c=document.createElement('div');c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000';document.body.appendChild(c);const cols=['#ffe066','#c0ff60','#60ffaa'];for(let i=0;i<22;i++){const e=document.createElement('div');const s=4+Math.random()*5;const col=cols[Math.floor(Math.random()*cols.length)];const dur=3+Math.random()*4;const dx=(Math.random()-0.5)*60,dy=(Math.random()-0.5)*60;e.style.cssText='position:absolute;left:'+Math.random()*95+'vw;top:'+(20+Math.random()*70)+'vh;width:'+s+'px;height:'+s+'px;background:'+col+';border-radius:50%;box-shadow:0 0 '+(s*3)+'px '+col+';animation:ff'+i+' '+dur+'s ease-in-out infinite alternate;';const st=document.createElement('style');st.textContent='@keyframes ff'+i+'{0%{transform:translate(0,0);opacity:0.2}50%{opacity:1}100%{transform:translate('+dx+'px,'+dy+'px);opacity:0.3}}';document.head.appendChild(st);c.appendChild(e);}})();`,
+  petalos: `(function(){const c=document.createElement('div');c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9000;overflow:hidden';document.body.appendChild(c);const emojis=['🌸','🌺','🌹','🌷'];function sp(){const e=document.createElement('div');e.textContent=emojis[Math.floor(Math.random()*emojis.length)];const s=0.7+Math.random()*1.2;e.style.cssText='position:absolute;top:-40px;left:'+Math.random()*100+'vw;font-size:'+s+'rem;opacity:0.8;animation:petalFall '+(5+Math.random()*6)+'s linear infinite;';c.appendChild(e);setTimeout(()=>e.remove(),(11+Math.random()*6)*1000);}if(!document.getElementById('petKf')){const st=document.createElement('style');st.id='petKf';st.textContent='@keyframes petalFall{0%{transform:translateY(-40px) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}';document.head.appendChild(st);}for(let i=0;i<18;i++)setTimeout(sp,i*250);setInterval(sp,600);})();`
 }
 
 window.injectEffect = function(name) {
   const code = EFFECTS[name]
   if (!code) return
   const f = document.getElementById('f-extracss')
-  if (f) {
-    // Evitar duplicados
-    if (f.value.includes(`/* ── ${name.charAt(0).toUpperCase()+name.slice(1)}`)) {
-      toast('Ese efecto ya está agregado', 'warn'); return
-    }
-    f.value = (f.value ? f.value + '\n\n' : '') + `<script>\n${code.trim()}\n<\/script>`
-  }
+  if (!f) return
+  if (f.value.includes('/* efecto:' + name + ' */')) { toast('Ese efecto ya está agregado', 'warn'); return }
+  f.value = (f.value ? f.value + '\n\n' : '') + '/* efecto:' + name + ' */\n' + code
   scheduleLive()
-  toast(`✓ Efecto ${name} agregado`)
+  toast('✓ Efecto ' + name + ' agregado')
 }
 
 // ── Helpers de UI ─────────────────────────────────────────────────────────────
@@ -389,13 +282,8 @@ function field(id, label, value = '', width = null, textarea = false) {
   </div>`
 }
 
-function row(fields) {
-  return `<div style="display:flex;gap:8px">${fields.join('')}</div>`
-}
-
-function cv(id) {
-  return document.getElementById(id)?.value?.trim() ?? ''
-}
+function row(fields) { return `<div style="display:flex;gap:8px">${fields.join('')}</div>` }
+function cv(id) { return document.getElementById(id)?.value?.trim() ?? '' }
 
 function updateCssChips(css) {
   const chips = document.getElementById('cssChips')
@@ -407,37 +295,51 @@ function updateCssChips(css) {
 // ── Carga de plantilla ────────────────────────────────────────────────────────
 function loadHtml(html, filename) {
   if (!html || html.trim().length < 50) { alert('Archivo vacío o inválido'); return }
-  originalHtml = html
-  currentHtml  = null
-  window.parsed = parsed
+  try {
+    originalHtml  = html
+    currentHtml   = null
+    parsed        = parseTemplate(html)   // ← FIX: se llama AQUÍ
+    window.parsed = parsed
 
-  const s = document.getElementById('loadStatus')
-  if (s) { s.style.display = 'block'; s.textContent = `✓ ${filename ?? 'Plantilla'} cargada — tipo: ${parsed.type}` }
+    const s = document.getElementById('loadStatus')
+    if (s) { s.style.display = 'block'; s.textContent = `✓ ${filename ?? 'Plantilla'} cargada — tipo: ${parsed.type}` }
 
-  const dz = document.getElementById('dropZone')
-  if (dz) { dz.style.borderColor = '#639922'; setTimeout(() => { dz.style.borderColor = '#2a2a2a' }, 2000) }
+    const dz = document.getElementById('dropZone')
+    if (dz) { dz.style.borderColor = '#639922'; setTimeout(() => { dz.style.borderColor = '#2a2a2a' }, 2000) }
 
-  const badge = document.getElementById('statusBadge')
-  if (badge) { badge.textContent = `${filename ?? 'HTML'} · ${parsed.type}`; badge.style.background = '#1a2e0f'; badge.style.color = '#c0dd97' }
+    const badge = document.getElementById('statusBadge')
+    if (badge) { badge.textContent = `${filename ?? 'HTML'} · ${parsed.type}`; badge.style.background = '#1a2e0f'; badge.style.color = '#c0dd97' }
 
-  toast(`✓ ${Object.values(parsed.fields).filter(Boolean).length} campos detectados · Plantilla ${parsed.type}`)
+    const count = Object.values(parsed.fields).filter(Boolean).length
+    toast(`✓ ${count} campos detectados · Plantilla ${parsed.type}`)
 
-  renderTab()
-  if (liveActive) updateLive()
+    renderTab()
+    if (liveActive) updateLive()
+  } catch(e) {
+    console.error('loadHtml error:', e)
+    alert('Error al cargar la plantilla: ' + e.message)
+  }
 }
 
 document.getElementById('fileInput').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return
-  const r = new FileReader(); r.onload = ev => loadHtml(ev.target.result, f.name); r.readAsText(f, 'utf-8')
+  const r = new FileReader()
+  r.onload = ev => loadHtml(ev.target.result, f.name)
+  r.onerror = () => alert('Error leyendo el archivo')
+  r.readAsText(f, 'utf-8')
   e.target.value = ''
 })
+
 const dz = document.getElementById('dropZone')
 ;['dragenter','dragover'].forEach(evt => dz.addEventListener(evt, e => { e.preventDefault(); dz.style.borderColor = '#639922' }))
 ;['dragleave','dragend'].forEach(evt => dz.addEventListener(evt, () => { dz.style.borderColor = '#2a2a2a' }))
 dz.addEventListener('drop', e => {
   e.preventDefault(); dz.style.borderColor = '#2a2a2a'
   const f = e.dataTransfer.files[0]; if (!f) return
-  const r = new FileReader(); r.onload = ev => loadHtml(ev.target.result, f.name); r.readAsText(f, 'utf-8')
+  const r = new FileReader()
+  r.onload = ev => loadHtml(ev.target.result, f.name)
+  r.onerror = () => alert('Error leyendo el archivo')
+  r.readAsText(f, 'utf-8')
 })
 
 // ── Recopilar campos ──────────────────────────────────────────────────────────
@@ -466,11 +368,7 @@ function getFields() {
 }
 
 function getExtra() {
-  return {
-    cssRoot:  cv('f-cssroot'),
-    extraCss: cv('f-extracss'),
-    temaReps,
-  }
+  return { cssRoot: cv('f-cssroot'), extraCss: cv('f-extracss'), temaReps }
 }
 
 // ── Aplicar y exportar ────────────────────────────────────────────────────────
@@ -485,7 +383,8 @@ document.getElementById('btnExport').addEventListener('click', () => {
   if (!originalHtml) { toast('Cargá una plantilla primero', 'warn'); return }
   const html = currentHtml ?? applyChanges(originalHtml, parsed.originals, getFields(), getExtra())
   const slug = (cv('f-nombre') || 'invitacion').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-')
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
   a.download = `invitar-${slug}.html`; a.click(); URL.revokeObjectURL(a.href)
   toast('✓ HTML exportado')
   saveToSupabase(html, slug)
@@ -520,26 +419,20 @@ window.refreshLive = refreshLive
 function setScale(s) { liveScale = s; resizeFrame() }
 window.setScale = setScale
 
-// ── FIX: botón Abrir Invitación en el visor ───────────────────────────────────
 function openInvite() {
   if (!liveActive || !iframeReady) { toast('Activá el visor primero', 'warn'); return }
   try {
-    const doc = frame.contentDocument ?? frame.contentWindow.document
-    const btn = doc.getElementById('btnOpen')
-      ?? doc.querySelector('.btn-open')
-      ?? doc.querySelector('[id*="open"],[class*="open-btn"],[class*="btn-open"]')
-    if (btn) {
-      btn.click()
-      toast('✓ Invitación abierta')
-    } else {
-      const cover = doc.getElementById('cover-screen') ?? doc.querySelector('[id*="cover"]')
-      const main  = doc.getElementById('main-invite')  ?? doc.querySelector('[id*="main-invite"]')
+    const d = frame.contentDocument ?? frame.contentWindow.document
+    const btn = d.getElementById('btnOpen') ?? d.querySelector('.btn-open')
+    if (btn) { btn.click(); toast('✓ Invitación abierta') }
+    else {
+      const cover = d.getElementById('cover-screen') ?? d.querySelector('[id*="cover"]')
+      const main  = d.getElementById('main-invite')  ?? d.querySelector('[id*="main-invite"]')
       if (cover) { cover.style.display = 'none'; cover.style.opacity = '0' }
       if (main)  { main.classList.remove('hidden'); main.style.display = '' }
-      if (!cover && !main) toast('No se encontró portada en esta plantilla', 'warn')
-      else toast('✓ Portada omitida')
+      toast(cover || main ? '✓ Portada omitida' : 'No se encontró portada', cover || main ? 'ok' : 'warn')
     }
-  } catch(e) { toast('Error al abrir: ' + e.message, 'warn') }
+  } catch(e) { toast('Error: ' + e.message, 'warn') }
 }
 window.openInvite = openInvite
 
@@ -569,18 +462,13 @@ function updateLive(keepScroll = false) {
   frame.style.display = 'block'
   resizeFrame()
 
-  if (!iframeReady) {
-    frame.onload = () => { iframeReady = true; if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}; if (dot) dot.style.background = '#639922' }
-    frame.srcdoc = html
-  } else {
-    iframeReady = false
-    frame.onload = () => {
-      iframeReady = true
-      if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}
-      if (dot) dot.style.background = '#639922'
-    }
-    frame.srcdoc = html
+  iframeReady = false
+  frame.onload = () => {
+    iframeReady = true
+    if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}
+    if (dot) dot.style.background = '#639922'
   }
+  frame.srcdoc = html
 }
 
 function scheduleLive() {
@@ -593,7 +481,6 @@ function scheduleLive() {
 window.parseTema = function () {
   const raw = cv('f-temaraw'); if (!raw) return
   const log = []
-
   const rm = raw.match(/:root\s*\{([^}]+)\}/s)
   if (rm) {
     const f = document.getElementById('f-cssroot')
@@ -601,14 +488,12 @@ window.parseTema = function () {
     updateCssChips(f?.value ?? '')
     log.push('Paleta CSS')
   }
-
   const imports = raw.match(/@import\s+url\([^)]+\)[^;]*;/g)
   if (imports) {
     const f = document.getElementById('f-extracss')
     if (f) f.value = imports.join('\n') + (f.value ? '\n\n' + f.value : '')
     log.push('Tipografía @import')
   }
-
   temaReps = []
   raw.split('\n').forEach(line => {
     line = line.trim()
@@ -623,7 +508,6 @@ window.parseTema = function () {
     }
   })
   if (temaReps.length) log.push(temaReps.length + ' reemplazos')
-
   const st = document.getElementById('temaStatus')
   if (st) st.textContent = log.length ? '✓ ' + log.join(' · ') : 'Sin datos detectados'
   renderTemaList()
@@ -647,70 +531,61 @@ function initImgLoader() {
   const input = document.getElementById('imgInput')
   const drop  = document.getElementById('imgDrop')
   if (!input || !drop) return
-
   function loadImg(file) {
     if (!file?.type.startsWith('image/')) return
     const r = new FileReader()
     r.onload = e => {
       localImgUrl = e.target.result
-      const thumb = document.getElementById('imgThumb')
-      if (thumb) thumb.src = localImgUrl
-      const name = document.getElementById('imgName')
-      if (name) name.textContent = file.name + ' · ' + (file.size / 1024).toFixed(0) + ' KB'
-      const prev = document.getElementById('imgPreview')
-      if (prev) prev.style.display = 'block'
+      const thumb = document.getElementById('imgThumb'); if (thumb) thumb.src = localImgUrl
+      const name  = document.getElementById('imgName');  if (name)  name.textContent = file.name + ' · ' + (file.size/1024).toFixed(0) + ' KB'
+      const prev  = document.getElementById('imgPreview'); if (prev) prev.style.display = 'block'
     }
     r.readAsDataURL(file)
   }
-
   input.addEventListener('change', e => { if (e.target.files[0]) loadImg(e.target.files[0]); e.target.value = '' })
   ;['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.borderColor = '#639922' }))
   ;['dragleave','dragend'].forEach(ev => drop.addEventListener(ev, () => { drop.style.borderColor = '#2a2a2a' }))
   drop.addEventListener('drop', e => { e.preventDefault(); drop.style.borderColor = '#2a2a2a'; loadImg(e.dataTransfer.files[0]) })
 }
 
-window.useImgAs = function (target) {
+window.useImgAs = function(target) {
   if (!localImgUrl) { toast('Cargá una imagen primero', 'warn'); return }
-  const map = { cover: 'f-cover', 'cover-img': 'f-cover', hero: 'f-hero', gifsi: 'f-gifsi', gifno: 'f-gifno' }
+  const map = { cover:'f-cover', 'cover-img':'f-cover', hero:'f-hero', gifsi:'f-gifsi', gifno:'f-gifno' }
   if (map[target]) {
     const f = document.getElementById(map[target]); if (f) f.value = localImgUrl
   } else if (target === 'cover' || target === 'main') {
     const f = document.getElementById('f-extracss')
     const sel = target === 'cover' ? '#cover-screen' : '#main-invite'
-    const css = `\n${sel} { background-image: url("${localImgUrl}") !important; background-size: cover !important; background-position: center !important; }\n`
+    const css = '\n' + sel + ' { background-image: url("' + localImgUrl + '") !important; background-size: cover !important; background-position: center !important; }\n'
     if (f) f.value = (f.value + css)
   }
   scheduleLive()
   toast('✓ Imagen aplicada')
 }
 
-// ── Supabase Auth con clave maestra ──────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 const MASTER_KEY = '124578963#'
 
 function showLoginScreen() {
   const overlay = document.createElement('div')
   overlay.id = 'loginOverlay'
-  overlay.style.cssText = `position:fixed;inset:0;background:#0f0f0f;z-index:99999;display:flex;align-items:center;justify-content:center;`
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0f0f0f;z-index:99999;display:flex;align-items:center;justify-content:center;'
   overlay.innerHTML = `
     <div style="background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:36px 32px;width:320px;text-align:center">
       <div style="font-weight:700;font-size:18px;color:#c0dd97;margin-bottom:4px">InvitAR Studio</div>
       <div style="font-size:11px;color:#555;margin-bottom:24px">Acceso privado</div>
       <input id="loginInput" type="password" placeholder="Contraseña"
         style="width:100%;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:6px;color:#e0e0e0;padding:10px 12px;font-size:13px;font-family:inherit;outline:none;margin-bottom:10px;text-align:center"
-        onkeydown="if(event.key==='Enter') window._doLogin()"
-      >
+        onkeydown="if(event.key==='Enter') window._doLogin()">
       <div id="loginError" style="font-size:10px;color:#e24b4a;margin-bottom:8px;min-height:14px"></div>
-      <button onclick="window._doLogin()"
-        style="width:100%;padding:10px;border-radius:6px;border:none;background:#c0dd97;color:#0f0f0f;cursor:pointer;font-size:13px;font-weight:700">
-        Entrar
-      </button>
+      <button onclick="window._doLogin()" style="width:100%;padding:10px;border-radius:6px;border:none;background:#c0dd97;color:#0f0f0f;cursor:pointer;font-size:13px;font-weight:700">Entrar</button>
     </div>
   `
   document.body.appendChild(overlay)
   setTimeout(() => document.getElementById('loginInput')?.focus(), 50)
 }
 
-window._doLogin = function () {
+window._doLogin = function() {
   const val = document.getElementById('loginInput')?.value ?? ''
   if (val === MASTER_KEY) {
     sessionStorage.setItem('invitar_auth', '1')
@@ -733,11 +608,11 @@ if (sessionStorage.getItem('invitar_auth') === '1') {
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'ok') {
   const t = document.createElement('div')
-  t.style.cssText = `position:fixed;bottom:20px;right:20px;background:${type === 'warn' ? '#2e1a0a' : '#1a2e0f'};color:${type === 'warn' ? '#f0a060' : '#c0dd97'};padding:10px 16px;border-radius:8px;font-size:11px;z-index:9999;max-width:300px;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.5);border:1px solid ${type === 'warn' ? '#4a2a0a' : '#2d4a1e'}`
+  t.style.cssText = `position:fixed;bottom:20px;right:20px;background:${type==='warn'?'#2e1a0a':'#1a2e0f'};color:${type==='warn'?'#f0a060':'#c0dd97'};padding:10px 16px;border-radius:8px;font-size:11px;z-index:9999;max-width:300px;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.5);border:1px solid ${type==='warn'?'#4a2a0a':'#2d4a1e'}`
   t.textContent = msg
   document.body.appendChild(t)
   setTimeout(() => t.remove(), 4000)
 }
 
-// ── Init v2 ──────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
 renderTab()
