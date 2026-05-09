@@ -409,7 +409,7 @@ function loadHtml(html, filename) {
   if (!html || html.trim().length < 50) { alert('Archivo vacío o inválido'); return }
   originalHtml = html
   currentHtml  = null
-  parsed       = parseTemplate(html)
+  window.parsed = parsed
 
   const s = document.getElementById('loadStatus')
   if (s) { s.style.display = 'block'; s.textContent = `✓ ${filename ?? 'Plantilla'} cargada — tipo: ${parsed.type}` }
