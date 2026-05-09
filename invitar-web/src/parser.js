@@ -10,7 +10,21 @@ export function parseTemplate(html) {
   const qattr    = (sel, attr) => { try { return doc.querySelector(sel)?.getAttribute(attr)?.trim() ?? null } catch { return null } }
 
   // Tipo
-  const type = html.includes('t-name') || html.includes('date-day') ? 'infantil'
+  try {
+  return {
+    type, cssRoot, originals,
+    fields: {
+      titulo, nombre, dia, mes, anio, hora,
+      salon, addr1, addr2, mapsQuery,
+      msgSi, footerTxt,
+      coverImg, heroImg, gifSi, gifNo,
+      footerEmojis, tStars, rainPool, audioSrc,
+    }
+  }
+} catch(e) {
+  console.error('parseTemplate error:', e)
+  return { type: 'generico', cssRoot: '', originals: {}, fields: {} }
+}
     : html.includes('hero-names') || html.includes('ceremony-card') ? 'casamiento'
     : 'generico'
 
