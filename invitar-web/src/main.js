@@ -573,11 +573,13 @@ function updateLive(keepScroll = false) {
     frame.onload = () => { iframeReady = true; if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}; if (dot) dot.style.background = '#639922' }
     frame.srcdoc = html
   } else {
-    try {
-      const doc = frame.contentDocument ?? frame.contentWindow.document
-      doc.open(); doc.write(html); doc.close()
-      setTimeout(() => { if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}; if (dot) dot.style.background = '#639922' }, 60)
-    } catch { iframeReady = false; frame.onload = () => { iframeReady = true; if (dot) dot.style.background = '#639922' }; frame.srcdoc = html }
+    iframeReady = false
+    frame.onload = () => {
+      iframeReady = true
+      if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}
+      if (dot) dot.style.background = '#639922'
+    }
+    frame.srcdoc = html
   }
 }
 
