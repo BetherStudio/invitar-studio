@@ -72,7 +72,7 @@ document.getElementById('root').innerHTML = `
         <i class="ti ti-eye-off" style="font-size:48px;margin-bottom:12px;opacity:.3"></i>
         <div>Cargá una plantilla para activar el visor</div>
       </div>
-      <iframe id="liveFrame" style="display:none;border:none;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.5);transition:.2s" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+      <iframe id="liveFrame" style="display:none;border:none;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.5);transition:.2s" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads"></iframe>
     </div>
   </div>
 
@@ -402,6 +402,7 @@ async function saveToSupabase(html, name) {
 
 // ── Visor en vivo ─────────────────────────────────────────────────────────────
 let liveScale = 'mobile'
+let liveBlobUrl = null
 const frame = document.getElementById('liveFrame')
 
 function toggleLive() {
@@ -462,13 +463,16 @@ function updateLive(keepScroll = false) {
   frame.style.display = 'block'
   resizeFrame()
 
+  if (liveBlobUrl) { URL.revokeObjectURL(liveBlobUrl); liveBlobUrl = null }
+  liveBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
+
   iframeReady = false
   frame.onload = () => {
     iframeReady = true
     if (scroll) try { frame.contentWindow.scrollTo({ top: scroll, behavior: 'instant' }) } catch {}
     if (dot) dot.style.background = '#639922'
   }
-  frame.srcdoc = html
+  frame.src = liveBlobUrl
 }
 
 function scheduleLive() {
